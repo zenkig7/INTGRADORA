@@ -4,73 +4,58 @@
 
 @layer base {
   :root {
-    --background: 228 29% 14%;
-    --foreground: 225 25% 95%;
-    --card: 228 25% 18%;
-    --card-foreground: 225 25% 95%;
-    --popover: 228 29% 14%;
-    --popover-foreground: 225 25% 95%;
-    --primary: 224 76% 63%;
-    --primary-foreground: 225 25% 95%;
-    --secondary: 228 20% 25%;
-    --secondary-foreground: 225 25% 95%;
-    --muted: 228 20% 25%;
-    --muted-foreground: 225 20% 70%;
-    --accent: 263 44% 55%;
-    --accent-foreground: 225 25% 95%;
-    --destructive: 0 63% 40%;
+    --background: 210 28% 12%;
+    --foreground: 180 22% 95%;
+    --card: 210 28% 16%;
+    --card-foreground: 180 22% 95%;
+    --popover: 210 28% 12%;
+    --popover-foreground: 180 22% 95%;
+    --primary: 180 82% 55%;
+    --primary-foreground: 210 28% 12%;
+    --secondary: 210 28% 20%;
+    --secondary-foreground: 180 22% 95%;
+    --muted: 210 28% 20%;
+    --muted-foreground: 180 22% 70%;
+    --accent: 180 82% 45%;
+    --accent-foreground: 180 22% 95%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 228 20% 30%;
-    --input: 228 20% 25%;
-    --ring: 224 76% 63%;
-    --chart-1: 224 76% 63%;
-    --chart-2: 263 44% 55%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 180 82% 35%;
+    --input: 210 28% 20%;
+    --ring: 180 82% 60%;
+    --chart-1: 180 82% 55%;
+    --chart-2: 120 73% 49%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 27 87% 67%;
+    --chart-5: 0 72% 51%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
-    --background: 228 29% 14%;
-    --foreground: 225 25% 95%;
-    --card: 228 25% 18%;
-    --card-foreground: 225 25% 95%;
-    --popover: 228 29% 14%;
-    --popover-foreground: 225 25% 95%;
-    --primary: 224 76% 63%;
-    --primary-foreground: 225 25% 95%;
-    --secondary: 228 20% 25%;
-    --secondary-foreground: 225 25% 95%;
-    --muted: 228 20% 25%;
-    --muted-foreground: 225 20% 70%;
-    --accent: 263 44% 55%;
-    --accent-foreground: 225 25% 95%;
-    --destructive: 0 63% 40%;
+    --background: 210 28% 12%;
+    --foreground: 180 22% 95%;
+    --card: 210 28% 16%;
+    --card-foreground: 180 22% 95%;
+    --popover: 210 28% 12%;
+    --popover-foreground: 180 22% 95%;
+    --primary: 180 82% 55%;
+    --primary-foreground: 210 28% 12%;
+    --secondary: 210 28% 20%;
+    --secondary-foreground: 180 22% 95%;
+    --muted: 210 28% 20%;
+    --muted-foreground: 180 22% 70%;
+    --accent: 180 82% 45%;
+    --accent-foreground: 180 22% 95%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 228 20% 30%;
-    --input: 228 20% 25%;
-    --ring: 224 76% 63%;
-    --chart-1: 224 76% 63%;
-    --chart-2: 263 44% 55%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 180 82% 35%;
+    --input: 210 28% 20%;
+    --ring: 180 82% 60%;
+    --chart-1: 180 82% 55%;
+    --chart-2: 120 73% 49%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 27 87% 67%;
+    --chart-5: 0 72% 51%;
   }
 }
 
@@ -80,5 +65,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.1) 1px, transparent 1px);
+    background-size: 2rem 2rem;
+  }
+
+  .card-glow {
+    @apply ring-1 ring-inset ring-primary/20;
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.1);
+  }
+
+  .btn-glow {
+    @apply ring-1 ring-inset ring-primary/20;
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.2);
   }
 }

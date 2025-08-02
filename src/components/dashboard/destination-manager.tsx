@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { MapPin, Send, Trash2, PlusCircle } from 'lucide-react';
+import { MapPin, Send, Trash2, PlusCircle, ChevronDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from '../ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 
 interface Destination {
   id: number;
@@ -17,12 +17,12 @@ interface Destination {
   description: string;
   lat: number;
   lng: number;
+  active?: boolean;
 }
 
 const initialDestinations: Destination[] = [
-    { id: 1, name: "Warehouse A", description: "Main pickup point.", lat: 34.0522, lng: -118.2437 },
-    { id: 2, name: "Client HQ", description: "Primary delivery address.", lat: 34.0567, lng: -118.2512 },
-    { id: 3, name: "Recharge Station", description: "Mid-route charging.", lat: 34.0488, lng: -118.2455 },
+    { id: 1, name: "Punto A", description: "Entrada principal", lat: 19.4326, lng: -99.1332 },
+    { id: 2, name: "Punto B", description: "Área de carga", lat: 19.4340, lng: -99.1310, active: true },
 ];
 
 export function DestinationManager() {
@@ -32,10 +32,11 @@ export function DestinationManager() {
     const [newDestLat, setNewDestLat] = useState('');
     const [newDestLng, setNewDestLng] = useState('');
     const { toast } = useToast();
+    const [isAddOpen, setIsAddOpen] = useState(false);
 
     const handleAddDestination = () => {
         if (!newDestName || !newDestLat || !newDestLng) {
-            toast({ title: "Error", description: "Please fill all required fields.", variant: "destructive" });
+            toast({ title: "Error", description: "Por favor, rellene todos los campos requeridos.", variant: "destructive" });
             return;
         }
         const newDestination: Destination = {
@@ -50,78 +51,70 @@ export function DestinationManager() {
         setNewDestDesc('');
         setNewDestLat('');
         setNewDestLng('');
-        toast({ title: "Success", description: "New destination added." });
+        toast({ title: "Éxito", description: "Nuevo destino añadido." });
     };
 
     const handleDelete = (id: number) => {
         setDestinations(destinations.filter(d => d.id !== id));
-        toast({ title: "Success", description: "Destination removed." });
+        toast({ title: "Éxito", description: "Destino eliminado." });
     }
 
     const handleSend = (name: string) => {
-        toast({ title: "Command Sent", description: `Sending robot to ${name}.` });
+        toast({ title: "Comando Enviado", description: `Enviando robot a ${name}.` });
     }
 
     return (
         <Card className="h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline">
-                    <MapPin className="h-6 w-6" />
-                    Destinations
+            <CardHeader className="p-4 border-b">
+                <CardTitle className="flex items-center gap-2 font-headline text-base">
+                    <MapPin className="h-5 w-5" />
+                    DESTINOS GUARDADOS
                 </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-6 flex-grow min-h-0">
-                <div className="grid gap-4">
-                    <h3 className="font-semibold text-lg flex items-center gap-2"><PlusCircle className="h-5 w-5"/>Add Destination</h3>
-                    <div className="grid gap-2">
-                        <Label htmlFor="dest-name">Name</Label>
-                        <Input id="dest-name" value={newDestName} onChange={(e) => setNewDestName(e.target.value)} placeholder="e.g., Downtown Dropoff" />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="dest-desc">Description</Label>
-                        <Textarea id="dest-desc" value={newDestDesc} onChange={(e) => setNewDestDesc(e.target.value)} placeholder="Optional description"/>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="dest-lat">Latitude</Label>
-                            <Input id="dest-lat" type="number" value={newDestLat} onChange={(e) => setNewDestLat(e.target.value)} placeholder="34.0522" />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="dest-lng">Longitude</Label>
-                            <Input id="dest-lng" type="number" value={newDestLng} onChange={(e) => setNewDestLng(e.target.value)} placeholder="-118.2437" />
-                        </div>
-                    </div>
-                    <Button onClick={handleAddDestination}>Add Destination</Button>
-                </div>
-
-                <Separator />
-                
-                <div className="flex flex-col gap-4 min-h-0 flex-grow">
-                    <h3 className="font-semibold text-lg">Saved Destinations</h3>
-                    <ScrollArea className="flex-grow pr-4 -mr-4">
-                        <div className="space-y-4">
-                            {destinations.map(dest => (
-                                <Card key={dest.id} className="p-4 flex flex-col gap-2 bg-background/50">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold">{dest.name}</p>
-                                            <p className="text-sm text-muted-foreground">{dest.description}</p>
-                                        </div>
-                                        <div className="flex gap-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSend(dest.name)}>
-                                                <Send className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={() => handleDelete(dest.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+            <CardContent className="p-4 flex flex-col gap-4 flex-grow min-h-0">
+                <ScrollArea className="flex-grow pr-2 -mr-2">
+                    <div className="space-y-4">
+                        {destinations.map(dest => (
+                            <Card key={dest.id} className="p-4 flex flex-col gap-2 bg-card/50 border-primary/20">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-semibold text-primary">{dest.name}</p>
+                                        {dest.active && <Badge className="bg-green-400/20 text-green-300 border-green-400 text-xs">ACTIVO</Badge>}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">{`Lat: ${dest.lat}, Lng: ${dest.lng}`}</p>
-                                </Card>
-                            ))}
+                                    <div className="flex gap-1">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary" onClick={() => handleSend(dest.name)}>
+                                            <Send className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/10 hover:text-red-400" onClick={() => handleDelete(dest.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{dest.description}</p>
+                                <p className="text-xs text-muted-foreground">{`${dest.lat}, ${dest.lng}`}</p>
+                            </Card>
+                        ))}
+                    </div>
+                </ScrollArea>
+                <Collapsible open={isAddOpen} onOpenChange={setIsAddOpen}>
+                    <CollapsibleTrigger asChild>
+                         <Button variant="outline" className="w-full justify-between mt-4">
+                            <span className="flex items-center gap-2"><PlusCircle className="h-5 w-5"/>AGREGAR DESTINO</span>
+                            <ChevronDown className={`h-5 w-5 transition-transform ${isAddOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 p-4 border rounded-md">
+                         <div className="grid gap-2">
+                            <Input value={newDestName} onChange={(e) => setNewDestName(e.target.value)} placeholder="Nombre" />
+                            <Textarea value={newDestDesc} onChange={(e) => setNewDestDesc(e.target.value)} placeholder="Descripción"/>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input type="number" value={newDestLat} onChange={(e) => setNewDestLat(e.target.value)} placeholder="Latitud" />
+                                <Input type="number" value={newDestLng} onChange={(e) => setNewDestLng(e.target.value)} placeholder="Longitud" />
+                            </div>
+                            <Button onClick={handleAddDestination} className="w-full">Agregar</Button>
                         </div>
-                    </ScrollArea>
-                </div>
+                    </CollapsibleContent>
+                </Collapsible>
             </CardContent>
         </Card>
     );

@@ -9,12 +9,12 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="mx-auto max-w-sm w-full">
-        <CardHeader className="space-y-1 text-center">
+        <CardHeader className="space-y-2 text-center">
           <div className="inline-flex items-center justify-center gap-2">
-            <Bot className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl font-headline">RoverView</CardTitle>
+            <Bot className="h-10 w-10 text-primary" />
           </div>
-          <CardDescription>Enter your email below to login to your account</CardDescription>
+          <CardTitle className="text-2xl font-headline tracking-widest text-primary">ENTREGA DE ROBOTS</CardTitle>
+          <CardDescription>SISTEMA DE CONTROL</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
@@ -24,9 +24,9 @@ export default function LoginPage() {
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Contraseña</Label>
                 <Link href="#" className="ml-auto inline-block text-sm underline">
-                  Forgot your password?
+                  ¿Olvidaste tu contraseña?
                 </Link>
               </div>
               <Input id="password" type="password" required />
@@ -34,19 +34,16 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" asChild>
                 <Link href="/dashboard">Login</Link>
             </Button>
-            <Button variant="outline" className="w-full" disabled>
-              Login with Google
+            <Button variant="outline" className="w-full">
+              Login con Google
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
+            ¿No tienes una cuenta?{' '}
             <Link href="/signup" className="underline">
-              Sign up
+              Regístrate
             </Link>
           </div>
-          <p className="mt-4 text-xs text-center text-muted-foreground">
-            Secure authentication provided by Supabase.
-          </p>
         </CardContent>
       </Card>
     </div>
