@@ -6,15 +6,15 @@ import { Badge } from '../ui/badge';
 import 'leaflet/dist/leaflet.css';
 import dynamic from 'next/dynamic';
 
-const MapView = () => {
-    const Map = dynamic(
-      () => import('../ui/map'),
-      { 
-        ssr: false,
-        loading: () => <div className="w-full h-full bg-muted animate-pulse" />
-      }
-    )
+const Map = dynamic(
+  () => import('../ui/map'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-muted animate-pulse" />
+  }
+)
 
+const MapView = () => {
     return (
         <Card className="h-full flex flex-col">
             <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
