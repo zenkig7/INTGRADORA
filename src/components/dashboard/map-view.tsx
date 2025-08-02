@@ -1,20 +1,20 @@
-
 "use client";
 
+import { useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '../ui/badge';
 import 'leaflet/dist/leaflet.css';
-import dynamic from 'next/dynamic';
-
-const Map = dynamic(
-  () => import('../ui/map'),
-  { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-muted animate-pulse" />
-  }
-)
 
 const MapView = () => {
+    const Map = useMemo(() => dynamic(
+        () => import('@/components/ui/map'),
+        { 
+            ssr: false,
+            loading: () => <div className="w-full h-full bg-muted animate-pulse" />
+        }
+    ), []);
+
     return (
         <Card className="h-full flex flex-col">
             <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
