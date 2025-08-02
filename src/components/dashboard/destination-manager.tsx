@@ -21,8 +21,8 @@ interface Destination {
 }
 
 const initialDestinations: Destination[] = [
-    { id: 1, name: "Punto A", description: "Entrada principal", lat: 19.4326, lng: -99.1332 },
-    { id: 2, name: "Punto B", description: "Área de carga", lat: 19.4340, lng: -99.1310, active: true },
+    { id: 1, name: "Base", description: "Punto de carga y estacionamiento", lat: 25.9231526, lng: -97.5892535, active: true },
+    { id: 2, name: "Punto de Entrega A", description: "Entrada principal", lat: 25.9240, lng: -97.5880 },
 ];
 
 export function DestinationManager() {
