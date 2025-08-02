@@ -3,27 +3,16 @@
 
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '../ui/badge';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Fix for default icon path issue with Webpack
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-
 const MapView = () => {
-    const position: [number, number] = [19.4326, -99.1332];
-
     const Map = dynamic(
-      () => import('../ui/map'), // adjust path to your Map component
-      { ssr: false }
+      () => import('../ui/map'),
+      { 
+        ssr: false,
+        loading: () => <div className="w-full h-full bg-muted animate-pulse" />
+      }
     )
 
     return (
