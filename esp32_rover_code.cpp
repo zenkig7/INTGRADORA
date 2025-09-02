@@ -201,9 +201,9 @@ void setupFirebase() {
     config.database_url = DATABASE_URL;
 
     // Asignar los callbacks para el stream de datos de comandos
-    config.stream_data_changed_callback = streamCallback;
-    config.stream_timeout_callback = streamTimeoutCallback;
-    
+    fbdo.setResponseSize(1024);
+    config.timeout.serverResponse = 10 * 1000;
+
     Firebase.begin(&config, &auth);
     Firebase.reconnectWiFi(true);
 
@@ -219,6 +219,7 @@ void setupFirebase() {
         Serial.println("   Firebase listo. Escuchando comandos en 'robot/commands/latest'");
         Serial.println("   ------------------------------------");
         firebase_ready = true;
+        Firebase.RTDB.setStreamCallback(&fbdo, streamCallback, streamTimeoutCallback);
     }
 }
 
@@ -236,7 +237,7 @@ void sendStatusToFirebase() {
     statusJson.set("gps/valid", robotStatus.gpsValid);
     statusJson.set("arduinoConnected", robotStatus.arduinoConnected);
     statusJson.set("emergencyStop", robotStatus.emergencyStop);
-    statusJson.set("lastUpdate", ".sv", "timestamp"); // Timestamp del servidor
+    statusJson.set("lastUpdate/.sv", "timestamp"); // Timestamp del servidor
 
     // Serial.println("📤 Enviando estado a Firebase...");
     if (!Firebase.RTDB.setJSON(&fbdo, "robot/status", &statusJson)) {
@@ -294,7 +295,7 @@ void streamCallback(FirebaseStream data) {
 
         json->get(result, "params");
         if (result.success) {
-            params = result.to<FirebaseJson>();
+            result.get<FirebaseJson>(params);
         }
         
         handleCommand(command, params);
