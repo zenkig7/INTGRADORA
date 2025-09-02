@@ -1,209 +1,344 @@
 /**
- * @file esp32_rover_code.cpp
- * @author Tu Nombre
- * @brief Código para un robot basado en ESP32 que se conecta a Firebase para control remoto.
- * @version 0.1
- * @date 2023-10-27
- *
- * @copyright Copyright (c) 2023
- *
+ * ===============================================
+ * ESP32 - ROBOT TRANSPORTADOR UNIVERSITARIO v3.2 (Firebase Edition)
+ * ===============================================
+ * Conecta el robot a Firebase para ser controlado por la aplicación web RoverView.
+ * ===============================================
+ * Autor: zenkig7 (Modificado por Firebase Studio AI)
+ * Fecha: 2025-09-02
+ * Universidad Autónoma - Proyecto Integrador
+ * ===============================================
  */
 
 // --- 1. INCLUIR BIBLIOTECAS ---
-#include <Arduino.h>
 #include <WiFi.h>
+#include <HardwareSerial.h>
 #include <Firebase_ESP_Client.h>
-#include "addons/TokenHelper.h" // Para la autenticación
-#include "addons/RTDBHelper.h" // Para la Realtime Database
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
 
-// --- 2. CONFIGURACIÓN DE WIFI Y FIREBASE ---
+// --- 2. CONFIGURACIÓN DE FIREBASE Y WIFI ---
 // Reemplaza con los datos de tu red WiFi
-#define WIFI_SSID "TU_NOMBRE_DE_WIFI"
-#define WIFI_PASSWORD "TU_CONTRASEÑA_DE_WIFI"
+#define WIFI_SSID "MINA_wifi_2.4G"
+#define WIFI_PASSWORD "Lacapital.12"
 
-// Reemplaza con los datos de tu proyecto de Firebase
-#define API_KEY "AIzaSyDZ3Ha4VyFPfS8pi8DXELFeJ-_ESUgX4CI" // Es la misma que en tu app web
-#define DATABASE_URL "https://roverview-bie3m-default-rtdb.firebaseio.com" // Asegúrate que sea la URL de tu Realtime Database
+// Datos del proyecto de Firebase (de la app RoverView)
+#define API_KEY "AIzaSyDZ3Ha4VyFPfS8pi8DXELFeJ-_ESUgX4CI"
+#define DATABASE_URL "https://roverview-bie3m-default-rtdb.firebaseio.com" 
 
-// --- 3. OBJETOS GLOBALES DE FIREBASE ---
-FirebaseData fbdo; // Objeto para las operaciones de Firebase
-FirebaseAuth auth; // Objeto para la autenticación
-FirebaseConfig config; // Objeto para la configuración
+// --- 3. CONFIGURACIÓN DE PINES ---
+#define GPS_RX_PIN      16
+#define GPS_TX_PIN      17
+#define GPS_BAUD_RATE   9600
 
-// Variable para saber si estamos conectados a Firebase
+#define ARDUINO_RX_PIN  2
+#define ARDUINO_TX_PIN  4
+#define ARDUINO_BAUD    9600
+
+#define LED_PIN         2
+#define SERIAL_BAUD     115200
+
+// --- 4. OBJETOS GLOBALES ---
+HardwareSerial gpsSerial(1);
+HardwareSerial arduinoSerial(2);
+
+// Objetos de Firebase
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// Timers y Banderas
+unsigned long lastStatusUpdateMillis = 0;
+unsigned long lastGPSUpdate = 0;
 bool firebase_ready = false;
-unsigned long sendDataPrevMillis = 0;
+String currentIP = "";
 
-// --- 4. DECLARACIÓN DE FUNCIONES ---
-void streamCallback(FirebaseStream data);
-void streamTimeoutCallback(bool timeout);
+// --- 5. ESTRUCTURAS DE DATOS ---
+struct SystemStatus {
+    float batteryVoltage = 12.1;
+    int batteryPercentage = 85;
+    double latitude = 25.9231526; // Coordenadas Base
+    double longitude = -97.5892535;
+    float altitude = 10.0;
+    bool gpsValid = false;
+    int gpsSatellites = 0;
+    bool arduinoConnected = false;
+    bool emergencyStop = false;
+} robotStatus;
+
+// --- 6. DECLARACIÓN DE FUNCIONES ---
+// Inicialización
+void printSystemHeader();
 void setupWiFi();
 void setupFirebase();
+void initializeHardware();
+void testCommunications();
+
+// Tareas del Loop
+void processGPSData();
+void processArduinoComm();
+void sendStatusToFirebase();
+
+// Callbacks de Firebase
+void streamCallback(FirebaseStream data);
+void streamTimeoutCallback(bool timeout);
+
+// Control del Robot
 void handleCommand(String command, FirebaseJson &params);
+void sendArduinoCommand(String command);
 
-// --- CÓDIGO DE CONTROL DEL ROBOT (Aquí pones tu lógica) ---
-void moveForward() { Serial.println("Robot: Moviendo hacia adelante"); }
-void moveStop() { Serial.println("Robot: Deteniendo motores"); }
-void returnToBase() { Serial.println("Robot: Regresando a la base"); }
-void emergencyStop() { Serial.println("Robot: PARADA DE EMERGENCIA"); }
-void followPath(FirebaseJsonArray &path) {
-    Serial.println("Robot: Siguiendo ruta...");
-    for (size_t i = 0; i < path.size(); i++) {
-        FirebaseJsonData point;
-        path.get(point, i);
-        Serial.printf("  - Punto %d: Lat: %s, Lng: %s\n", i + 1, point.to<String>().c_str(), point.to<String>().c_str());
-    }
-}
-void goToDestination(float lat, float lng){
-    Serial.printf("Robot: Yendo a destino -> Lat: %f, Lng: %f\n", lat, lng);
-}
+// GPS
+void parseGPGGA(String sentence);
+double convertToDecimalDegrees(String coordinate, String direction);
 
 
-// --- 5. FUNCIÓN DE CONFIGURACIÓN (SETUP) ---
+// ======================= 7. FUNCIÓN DE CONFIGURACIÓN (SETUP) =======================
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("====================================");
-  Serial.println("     INICIANDO ROBOT ROVERVIEW     ");
-  Serial.println("====================================");
+    Serial.begin(SERIAL_BAUD);
+    delay(2000);
 
-  setupWiFi();
-  setupFirebase();
+    printSystemHeader();
+    initializeHardware();
+    setupWiFi();
+    setupFirebase();
+    
+    Serial.println("\n🚀 SISTEMA COMPLETAMENTE INICIALIZADO");
+    Serial.println(String('=').substring(0, 70));
 }
 
-// --- 6. BUCLE PRINCIPAL (LOOP) ---
+// ======================= 8. BUCLE PRINCIPAL (LOOP) =======================
 void loop() {
-  // Mantener la conexión con Firebase
-  if (firebase_ready && Firebase.ready()) {
-    // Escucha por comandos y actualiza el estado
-  } else if (!firebase_ready) {
-      Serial.println("Firebase no está listo. Reintentando...");
-      setupFirebase(); // Intenta reconectar
-      delay(5000);
-  }
+    if (Firebase.ready()) {
+        processGPSData();
+        processArduinoComm();
 
-  // Ejemplo: Enviar datos de estado cada 10 segundos
-  if (millis() - sendDataPrevMillis > 10000 && firebase_ready) {
-      sendDataPrevMillis = millis();
-      float fake_battery = random(80, 100);
-      Serial.printf("Enviando estado a Firebase: Batería = %f\n", fake_battery);
-      // La ruta para actualizar el estado, ej: "robot/status/battery"
-      Firebase.RTDB.setFloat(&fbdo, "robot/status/battery", fake_battery);
-  }
+        // Enviar estado a Firebase cada 5 segundos
+        if (millis() - lastStatusUpdateMillis > 5000) {
+            sendStatusToFirebase();
+            lastStatusUpdateMillis = millis();
+        }
+    } else {
+        if (!firebase_ready) {
+            Serial.println("Firebase no está listo. Reintentando...");
+            setupFirebase(); // Intenta reconectar
+            delay(5000);
+        }
+    }
+    delay(50);
 }
 
-// --- 7. IMPLEMENTACIÓN DE FUNCIONES ---
 
-/**
- * @brief Configura y conecta el ESP32 a la red WiFi.
- */
+// ======================= 9. IMPLEMENTACIÓN DE FUNCIONES =======================
+
+// --- INICIALIZACIÓN ---
+
+void printSystemHeader() {
+    Serial.println("\n" + String('=').substring(0, 70));
+    Serial.println("🤖 ROBOT TRANSPORTADOR UNIVERSITARIO v3.2 - Firebase Edition");
+    Serial.println("👨‍💻 Desarrollado por: zenkig7 (Modificado por Firebase Studio)");
+    Serial.println("🔗 Conectado a la aplicación web RoverView");
+    Serial.println(String('=').substring(0, 70));
+}
+
+void initializeHardware() {
+    Serial.println("🔌 Inicializando hardware de comunicación...");
+    gpsSerial.begin(GPS_BAUD_RATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+    Serial.println("✅ GPS UART1 - RX:" + String(GPS_RX_PIN) + ", TX:" + String(GPS_TX_PIN));
+    
+    arduinoSerial.begin(ARDUINO_BAUD, SERIAL_8N1, ARDUINO_RX_PIN, ARDUINO_TX_PIN);
+    Serial.println("✅ Arduino UART2 - RX:" + String(ARDUINO_RX_PIN) + ", TX:" + String(ARDUINO_TX_PIN));
+    
+    delay(1000);
+    testCommunications();
+    Serial.println("🚀 Hardware de comunicación inicializado");
+}
+
+void testCommunications() {
+    Serial.println("\n🧪 Probando comunicación con Arduino...");
+    sendArduinoCommand("PING:ESP32_INIT");
+    delay(2000);
+    if (arduinoSerial.available()) {
+        String response = arduinoSerial.readStringUntil('\n');
+        response.trim();
+        Serial.println("✅ Arduino respondió: " + response);
+        robotStatus.arduinoConnected = true;
+    } else {
+        Serial.println("❌ Arduino no respondió. Verifica la conexión.");
+        robotStatus.arduinoConnected = false;
+    }
+    Serial.println("🏁 Tests de comunicación completados\n");
+}
+
+
 void setupWiFi() {
-  Serial.print("Conectando a WiFi: ");
-  Serial.println(WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.println();
-  Serial.print("WiFi Conectado. IP: ");
-  Serial.println(WiFi.localIP());
+    Serial.println("🌐 Inicializando conectividad WiFi...");
+    Serial.println("📡 Red objetivo: " + String(WIFI_SSID));
+
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.print("🔄 Conectando");
+
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+        Serial.print(".");
+        delay(500);
+        attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        currentIP = WiFi.localIP().toString();
+        Serial.println("\n✅ WiFi CONECTADO!");
+        Serial.println("   IP Address: " + currentIP);
+    } else {
+        Serial.println("\n❌ No se pudo conectar al WiFi. Reiniciando en 10s...");
+        delay(10000);
+        ESP.restart();
+    }
 }
 
-/**
- * @brief Configura la conexión con Firebase y establece el listener de comandos.
- */
 void setupFirebase() {
-  Serial.println("Configurando Firebase...");
-  // Asignar la clave de la API
-  config.api_key = API_KEY;
-  // Asignar la URL de la base de datos
-  config.database_url = DATABASE_URL;
+    Serial.println("🔥 Configurando Firebase...");
+    config.api_key = API_KEY;
+    config.database_url = DATABASE_URL;
 
-  // Asignar los callbacks para el stream de datos
-  config.stream_data_changed_callback = streamCallback;
-  config.stream_timeout_callback = streamTimeoutCallback;
+    // Asignar los callbacks para el stream de datos de comandos
+    config.stream_data_changed_callback = streamCallback;
+    config.stream_timeout_callback = streamTimeoutCallback;
+    
+    Firebase.begin(&config, &auth);
+    Firebase.reconnectWiFi(true);
 
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
-
-  // Iniciar el "stream" para escuchar cambios en la ruta de comandos
-  // Esto es un listener que se ejecuta cada vez que hay un dato nuevo en "robot/commands/latest"
-  if (!Firebase.RTDB.beginStream(&fbdo, "robot/commands/latest")) {
-    Serial.println("------------------------------------");
-    Serial.println("Error al iniciar el stream de Firebase.");
-    Serial.println("REASON: " + fbdo.errorReason());
-    Serial.println("------------------------------------");
-    firebase_ready = false;
-  } else {
-    Serial.println("------------------------------------");
-    Serial.println("Firebase listo. Escuchando comandos...");
-    Serial.println("------------------------------------");
-    firebase_ready = true;
-  }
+    // Iniciar el listener de comandos
+    if (!Firebase.RTDB.beginStream(&fbdo, "robot/commands/latest")) {
+        Serial.println("   ------------------------------------");
+        Serial.println("   Error al iniciar el stream de Firebase.");
+        Serial.println("   REASON: " + fbdo.errorReason());
+        Serial.println("   ------------------------------------");
+        firebase_ready = false;
+    } else {
+        Serial.println("   ------------------------------------");
+        Serial.println("   Firebase listo. Escuchando comandos en 'robot/commands/latest'");
+        Serial.println("   ------------------------------------");
+        firebase_ready = true;
+    }
 }
 
-/**
- * @brief Callback que se ejecuta cuando llegan nuevos datos desde Firebase.
- */
+
+// --- TAREAS DEL LOOP ---
+
+void sendStatusToFirebase() {
+    if (!firebase_ready) return;
+    
+    FirebaseJson statusJson;
+    statusJson.set("battery", robotStatus.batteryPercentage);
+    statusJson.set("signal", WiFi.RSSI()); // Usamos la señal WiFi como indicador
+    statusJson.set("gps/lat", robotStatus.latitude);
+    statusJson.set("gps/lng", robotStatus.longitude);
+    statusJson.set("gps/valid", robotStatus.gpsValid);
+    statusJson.set("arduinoConnected", robotStatus.arduinoConnected);
+    statusJson.set("emergencyStop", robotStatus.emergencyStop);
+    statusJson.set("lastUpdate", ".sv", "timestamp"); // Timestamp del servidor
+
+    // Serial.println("📤 Enviando estado a Firebase...");
+    if (!Firebase.RTDB.setJSON(&fbdo, "robot/status", &statusJson)) {
+        Serial.println("   ❌ Error al enviar estado a Firebase: " + fbdo.errorReason());
+    }
+}
+
+
+void processGPSData() {
+    while (gpsSerial.available()) {
+        String sentence = gpsSerial.readStringUntil('\n');
+        sentence.trim();
+        if (sentence.startsWith("$GPGGA") || sentence.startsWith("$GNGGA")) {
+            parseGPGGA(sentence);
+            lastGPSUpdate = millis();
+        }
+    }
+    if (millis() - lastGPSUpdate > 15000 && lastGPSUpdate > 0) {
+        robotStatus.gpsValid = false;
+    }
+}
+
+void processArduinoComm() {
+    while (arduinoSerial.available()) {
+        String message = arduinoSerial.readStringUntil('\n');
+        message.trim();
+        if (message.length() > 0) {
+            Serial.println("📨 Arduino: " + message);
+            if (message.startsWith("STATUS:BATTERY:")) {
+                robotStatus.batteryPercentage = message.substring(15).toInt();
+            } else if (message.startsWith("PONG:")) {
+                robotStatus.arduinoConnected = true;
+            }
+        }
+    }
+}
+
+
+// --- CALLBACKS DE FIREBASE ---
+
 void streamCallback(FirebaseStream data) {
-  Serial.println("\n¡Nuevo comando recibido!");
-  Serial.printf("Ruta del Stream: %s\n", data.streamPath().c_str());
-  Serial.printf("Tipo de dato: %s\n", data.dataType().c_str());
+    Serial.println("\n⬇️ ¡Nuevo comando recibido de Firebase!");
 
-  if (data.dataTypeEnum() == fb_esp_rtdb_data_type_json) {
-    FirebaseJson *json = data.to<FirebaseJson *>();
-    // Serial.println(json->raw()); // Descomenta para ver el JSON crudo
+    if (data.dataTypeEnum() == fb_esp_rtdb_data_type_json) {
+        FirebaseJson *json = data.to<FirebaseJson *>();
+        
+        FirebaseJsonData result;
+        String command;
+        FirebaseJson params;
 
-    FirebaseJsonData result;
-    String command;
-    FirebaseJson params;
+        json->get(result, "command");
+        if (result.success) {
+            command = result.to<String>();
+        }
 
-    json->get(result, "command");
-    if (result.success) {
-      command = result.to<String>();
+        json->get(result, "params");
+        if (result.success) {
+            params = result.to<FirebaseJson>();
+        }
+        
+        handleCommand(command, params);
+
+    } else {
+        Serial.println("   Tipo de dato no esperado: " + data.dataType());
     }
-
-    json->get(result, "params");
-    if (result.success) {
-      params = result.to<FirebaseJson>();
-    }
-    
-    handleCommand(command, params);
-  }
 }
 
-/**
- * @brief Callback que se ejecuta si el stream de Firebase se desconecta.
- */
 void streamTimeoutCallback(bool timeout) {
-  if (timeout) {
-    Serial.println("¡Stream de Firebase agotado! Reiniciando...");
-    setupFirebase(); // Intenta reconectar
-  }
+    if (timeout) {
+        Serial.println("❗️ Stream de Firebase agotado! Intentando reconectar...");
+        // La biblioteca intentará reconectar automáticamente. 
+        // Si falla, se podría forzar un reinicio.
+        firebase_ready = false;
+    }
 }
 
 
-/**
- * @brief Procesa el comando recibido y ejecuta la acción correspondiente.
- */
+// --- CONTROL DEL ROBOT ---
+
 void handleCommand(String command, FirebaseJson &params) {
-    Serial.printf("Comando: '%s'\n", command.c_str());
-    
+    Serial.printf("   Procesando comando: '%s'\n", command.c_str());
+    robotStatus.emergencyStop = false;
+
     if (command == "start") {
-        moveForward();
+        sendArduinoCommand("MOVE:FORWARD:150");
     } else if (command == "stop") {
-        moveStop();
+        sendArduinoCommand("STOP");
     } else if (command == "emergency_stop") {
-        emergencyStop();
+        robotStatus.emergencyStop = true;
+        sendArduinoCommand("STOP");
     } else if (command == "return_to_base") {
-        returnToBase();
+        // Lógica para volver a la base (se puede implementar con waypoints)
+        // Por ahora, solo se detiene
+        sendArduinoCommand("STOP"); 
     } else if (command == "follow_route") {
         FirebaseJsonData result;
         params.get(result, "path");
         if(result.success){
-            FirebaseJsonArray &arr = result.to<FirebaseJsonArray>();
-            followPath(arr);
+            Serial.println("   Recibida una ruta. La lógica de seguimiento de ruta aún no está implementada.");
+            // Aquí iría la lógica para seguir una secuencia de puntos de la ruta
+            // Por ejemplo, guardar el array de puntos y navegar uno por uno.
+            sendArduinoCommand("MOVE:FORWARD:120"); // Inicia movimiento como demostración
         }
     } else if (command == "go_to_destination") {
         FirebaseJsonData result;
@@ -212,9 +347,61 @@ void handleCommand(String command, FirebaseJson &params) {
         if(result.success) lat = result.to<float>();
         params.get(result, "lng");
         if(result.success) lng = result.to<float>();
-
-        goToDestination(lat, lng);
+        
+        Serial.printf("   Navegando a destino -> Lat: %f, Lng: %f\n", lat, lng);
+        Serial.println("   La navegación autónoma aún no está implementada.");
+        // Aquí iría la lógica para la navegación autónoma hacia el punto (lat, lng)
+        sendArduinoCommand("MOVE:FORWARD:120"); // Inicia movimiento como demostración
     } else {
-        Serial.println("Comando no reconocido.");
+        Serial.println("   Comando no reconocido.");
     }
+}
+
+void sendArduinoCommand(String command) {
+    arduinoSerial.println(command);
+    Serial.println("   📤 → Arduino: " + command);
+}
+
+
+// --- GPS ---
+
+void parseGPGGA(String sentence) {
+    int indices[15];
+    int count = 0;
+    for (int i = 0; i < sentence.length() && count < 15; i++) {
+        if (sentence.charAt(i) == ',') indices[count++] = i;
+    }
+
+    if (count >= 7) {
+        String latStr = sentence.substring(indices[1] + 1, indices[2]);
+        String latDir = sentence.substring(indices[2] + 1, indices[3]);
+        String lonStr = sentence.substring(indices[3] + 1, indices[4]);
+        String lonDir = sentence.substring(indices[4] + 1, indices[5]);
+        int fixQuality = sentence.substring(indices[5] + 1, indices[6]).toInt();
+        
+        robotStatus.gpsSatellites = sentence.substring(indices[6] + 1, indices[7]).toInt();
+        
+        if (fixQuality > 0 && latStr.length() > 0 && lonStr.length() > 0) {
+            robotStatus.latitude = convertToDecimalDegrees(latStr, latDir);
+            robotStatus.longitude = convertToDecimalDegrees(lonStr, lonDir);
+            robotStatus.gpsValid = true;
+        } else {
+            robotStatus.gpsValid = false;
+        }
+    }
+}
+
+double convertToDecimalDegrees(String coordinate, String direction) {
+    if (coordinate.length() < 4) return 0.0;
+    int dotIndex = coordinate.indexOf('.');
+    if (dotIndex < 0) return 0.0;
+    
+    double degrees = coordinate.substring(0, dotIndex - 2).toDouble();
+    double minutes = coordinate.substring(dotIndex - 2).toDouble();
+    double decimal = degrees + (minutes / 60.0);
+    
+    if (direction == "S" || direction == "W") {
+        decimal = -decimal;
+    }
+    return decimal;
 }
